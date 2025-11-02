@@ -6,8 +6,15 @@
 #include <Adafruit_SH110X.h>
 
 #include "bitmaps.h"
+#include "joystick.h"
+
 
 RF24 radio(9, 10); // CE, CSN
+
+
+joystick joystickL(A1,A2,22);
+joystick joystickR(A3,A4,23);
+
 
 const byte address[6] = "NODE1";
 uint16_t DroneBattery;
@@ -15,19 +22,11 @@ uint16_t ControllerBattery = 100;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-struct joystick
-{
-  uint16_t x;
-  uint16_t y;
-  bool button;
-};
-
 struct message
 {
   uint16_t pot1;
-  joystick joystickL;
-  joystick joystickR;
-  bool lights;
+  joystickValues joystickL;
+  joystickValues joystickR;
 };
 
 message Data;
@@ -96,6 +95,9 @@ void drawDisplay(bool Light, int power)
   display.display();
 }
 
+
+
+
 void setup()
 {
   Serial.begin(9600);
@@ -108,26 +110,25 @@ void setup()
   radio.setPALevel(RF24_PA_LOW);
   radio.openWritingPipe(address);
   radio.stopListening();
-  pinMode(47, INPUT_PULLUP); // Light switch pin
   display.begin(0x3C, true);
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0, 0);
   radio.enableAckPayload();
+
+  pinMode(A0, INPUT);
+  
 }
 
 void loop()
 {
 
-  Data.joystickL.x = analogRead(A1);
-  Data.joystickL.y = analogRead(A2);
-  Data.joystickL.button = 0;
-  Data.lights = digitalRead(47); // Read the state of the light switch
 
-  Data.joystickR.x = 0;
-  Data.joystickR.y = 0;
-  Data.joystickR.button = 0;
+ 
+  Data.joystickL = joystickL.getValues();
+  Data.joystickR = joystickR.getValues();
+
   Serial.print("X:  ");
   Serial.print(Data.joystickL.x);
   Serial.print("    Y:  ");
@@ -142,6 +143,6 @@ void loop()
   }
 
   Serial.println(Data.pot1);
-  drawDisplay(Data.lights, Data.pot1);
+  drawDisplay(1,Data.pot1);
   delay(100);
 }
