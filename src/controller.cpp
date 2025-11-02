@@ -7,10 +7,23 @@
 
 #include "bitmaps.h"
 #include "joystick.h"
+#include "button.h"
+
+struct message
+{
+  uint16_t pot1;
+  joystickValues joystickL;
+  joystickValues joystickR;
+
+  float roll_kp, roll_ki, roll_kd;
+  float pitch_kp, pitch_ki, pitch_kd;
+  float yaw_kp, yaw_ki, yaw_kd;
+};
+
 
 
 RF24 radio(9, 10); // CE, CSN
-
+bool CalibratePID = false;
 
 joystick joystickL(A1,A2,22);
 joystick joystickR(A3,A4,23);
@@ -22,12 +35,8 @@ uint16_t ControllerBattery = 100;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-struct message
-{
-  uint16_t pot1;
-  joystickValues joystickL;
-  joystickValues joystickR;
-};
+
+Button button(24,50,true);
 
 message Data;
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -110,20 +119,59 @@ void setup()
   radio.setPALevel(RF24_PA_LOW);
   radio.openWritingPipe(address);
   radio.stopListening();
+  radio.enableAckPayload();
+
   display.begin(0x3C, true);
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0, 0);
-  radio.enableAckPayload();
+  
 
   pinMode(A0, INPUT);
   
 }
 
+void drawPID(){
+  display.setCursor(61, 24);
+display.print("I");
+
+display.setCursor(98, 25);
+display.print("D");
+
+display.setCursor(6, 42);
+display.print("100");
+
+display.setCursor(48, 43);
+display.print("100");
+
+display.setCursor(86, 43);
+display.print("100");
+
+display.drawRect(4, 40, 40, 20, 1);
+
+display.setTextSize(1);
+display.setCursor(54, 6);
+display.print("Text");
+
+display.display();
+}
+
+void Calibration(){
+
+ 
+}
+
 void loop()
 {
+  button.update();
+  if (button.wasPressed()) {
+    CalibratePID = !CalibratePID;
+  }
 
+  if(CalibratePID){
+    Calibration();
+  } 
 
  
   Data.joystickL = joystickL.getValues();
