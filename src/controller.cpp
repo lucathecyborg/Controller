@@ -8,6 +8,7 @@
 #include "bitmaps.h"
 #include "joystick.h"
 #include "button.h"
+#include "encoder.h"
 
 struct message
 {
@@ -36,8 +37,9 @@ uint16_t ControllerBattery = 100;
 #define SCREEN_HEIGHT 64
 
 
-Button button(24,50,true);
-
+Button calibrationButton(24,50,true);
+Button pidSelector(25,50,true);
+RotaryEncoder PidValue(26,27,28);
 message Data;
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -132,40 +134,128 @@ void setup()
   
 }
 
-void drawPID(){
-  display.setCursor(61, 24);
+
+
+void drawPID(int axis, int variable, float kp, float ki, float kd){
+
+display.setTextColor(1);
+display.setTextSize(2);
+display.setTextWrap(false);
+display.setCursor(21, 24);
+display.print("P");
+
+display.setCursor(61, 24);
 display.print("I");
 
 display.setCursor(98, 25);
 display.print("D");
 
 display.setCursor(6, 42);
-display.print("100");
+display.print(kp);
 
 display.setCursor(48, 43);
-display.print("100");
+display.print(ki);
 
 display.setCursor(86, 43);
-display.print("100");
+display.print(kd);
 
 display.drawRect(4, 40, 40, 20, 1);
 
 display.setTextSize(1);
 display.setCursor(54, 6);
-display.print("Text");
+switch (axis){
+    case 0:
+        display.print("Roll PID");
+        break;
+    case 1:
+        display.print("Pitch PID");
+        break;
+    case 2:
+        display.print("Yaw PID");
+        break;
+}
+
 
 display.display();
 }
 
-void Calibration(){
 
+
+float PidSelect(int value){
+  switch (value){
+    case 0:
+      return 0.5;
+      break;
+    case 1:
+      return 0.05;
+      break;
+    case 2:
+      return 0.2;
+      break;
+  }
+}
+
+
+
+void Calibration(){
+  int axis = 0;
+  int value=0;
+  while(true){
+    calibrationButton.update();
+
+    if(calibrationButton.wasPressed()){
+      return;
+    }
+
+    if(pidSelector.wasPressed()){
+      axis++;
+      if(axis>2){
+        axis=0;
+      }
+    }
+
+    PidValue.update();
+
+    if(PidValue.buttonWasPressed()){
+      value++;
+      if(value>2){
+        value=0;
+      }
+    }
+
+    int delta = PidValue.getDelta();
+
+
+//Make correct PID variable assignment here
+    switch (axis)
+    {
+    case 0:
+     
+      drawPID(axis, value,0,0,0);
+      break;
+    
+    default:
+      break;
+    }
+    
+
+    
+
+
+
+    
+
+
+
+
+  }
  
 }
 
 void loop()
 {
-  button.update();
-  if (button.wasPressed()) {
+  calibrationButton.update();
+  if (calibrationButton.wasPressed()) {
     CalibratePID = !CalibratePID;
   }
 
