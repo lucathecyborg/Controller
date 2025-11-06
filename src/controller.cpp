@@ -15,11 +15,11 @@ struct message
 {
   uint16_t pot1;
   joystickValues joystickL;
-  joystickValues joystickR;
+  joystickValues joystickR ;
 
-  float roll_kp = 1.5, roll_ki = 0.05, roll_kd = 0.8;
+/*  float roll_kp = 1.5, roll_ki = 0.05, roll_kd = 0.8;
   float pitch_kp = 1.5, pitch_ki = 0.05, pitch_kd = 0.8;
-  float yaw_kp = 1.5, yaw_ki = 0.05, yaw_kd = 0.8;
+  float yaw_kp = 1.5, yaw_ki = 0.05, yaw_kd = 0.8; */
 };
 
 
@@ -200,15 +200,24 @@ void drawPID(int axis, int variable, float kp, float ki, float kd){
 
 
 void sendData(){
-  Data.joystickL = joystickL.getValues();
-  Data.joystickR = joystickR.getValues();
+
+ /* Data.joystickL = joystickL.getValues();
+  Data.joystickR = joystickR.getValues();  */
+    Data.joystickL.x = 512;
+  Data.joystickL.y = 512;
+  Data.joystickL.button = 0;
+
+  Data.joystickR.x = 512;
+  Data.joystickR.y = 512;
+  Data.joystickR.button = 0;
   Data.pot1 = analogRead(A0);
-  Serial.print("X:  ");
+  Serial.println(Data.pot1);
+  /*Serial.print("X:  ");
   Serial.print(Data.joystickL.x);
   Serial.print("    Y:  ");
   Serial.println(Data.joystickL.y);
 
-  
+  */
 
   radio.write(&Data, sizeof(Data));
   if (radio.isAckPayloadAvailable())
@@ -220,7 +229,7 @@ void sendData(){
 }
 
 
-void Calibration(){
+/*void Calibration(){
   int axis = 0;
   int value = 0;
 
@@ -322,7 +331,7 @@ Serial.println(digitalRead(28));
     
  
   }
-}
+}*/
 
 
 
@@ -339,7 +348,7 @@ void loop()
   }
 
   if(CalibratePID){
-    Calibration();
+   // Calibration();
   } 
 
 
