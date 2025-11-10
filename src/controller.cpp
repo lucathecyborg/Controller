@@ -16,7 +16,7 @@ struct message
   uint16_t pot1; //2 bytes
   joystickValues joystickL; // 6 bytes
   joystickValues joystickR ; // 6 bytes
-  uint8_t PidAxis;    // 1 byte
+  uint8_t PidAxis=3;    // 1 byte
   float kp=1.5, ki=0.05, kd=0.8; // 12 bytes
 };
 
@@ -380,7 +380,9 @@ void loop()
   if(CalibratePID){
    Calibration();
   } 
-
+  else{
+    Data.PidAxis=3;
+  }
 
  
   sendData();
