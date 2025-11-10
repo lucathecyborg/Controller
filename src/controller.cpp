@@ -10,17 +10,21 @@
 #include "joystick.h"
 #include "button.h"
 
-
+//Size 27 bytes (max 32)
 struct message
 {
-  uint16_t pot1;
-  joystickValues joystickL;
-  joystickValues joystickR ;
-
-/*  float roll_kp = 1.5, roll_ki = 0.05, roll_kd = 0.8;
-  float pitch_kp = 1.5, pitch_ki = 0.05, pitch_kd = 0.8;
-  float yaw_kp = 1.5, yaw_ki = 0.05, yaw_kd = 0.8; */
+  uint16_t pot1; //2 bytes
+  joystickValues joystickL; // 6 bytes
+  joystickValues joystickR ; // 6 bytes
+  uint8_t PidAxis;    // 1 byte
+  float kp=1.5, ki=0.05, kd=0.8; // 12 bytes
 };
+
+
+
+  float roll_kp = 1.5, roll_ki = 0.05, roll_kd = 0.8;  
+  float pitch_kp = 1.5, pitch_ki = 0.05, pitch_kd = 0.8;
+  float yaw_kp = 1.5, yaw_ki = 0.05, yaw_kd = 0.8; 
 
 
 const byte address[6] = "NODE1";
@@ -48,6 +52,8 @@ Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 bool CalibratePID = false;
 
+
+// Display useful information during normal operation
 void drawDisplay(bool Light, int power)
 {
   static int lastPowerPercent = -100; // last shown % on screen
@@ -140,7 +146,7 @@ void setup()
 }
 
 
-
+//Display PID values during calibration
 void drawPID(int axis, int variable, float kp, float ki, float kd){
 
   display.clearDisplay();
@@ -199,6 +205,7 @@ void drawPID(int axis, int variable, float kp, float ki, float kd){
 }
 
 
+//Send data to the drone
 void sendData(){
 
  /* Data.joystickL = joystickL.getValues();
@@ -229,13 +236,26 @@ void sendData(){
 }
 
 
-/*void Calibration(){
+
+// Update the PID values in the Data struct
+void setPidSelectorValues(uint8_t axis, float p, float i, float d){
+      Data.kd=d;
+      Data.kp=p;
+      Data.ki=i;
+      Data.PidAxis=axis; 
+ 
+}
+
+
+
+// PID Calibration function
+void Calibration(){
   int axis = 0;
   int value = 0;
 
   while(true){
     
-    pidSelector.update();  // FIXED: Added update call for pidSelector
+    pidSelector.update(); 
 
     // Axis selector
     if(pidSelector.wasPressed()){
@@ -266,18 +286,21 @@ Serial.println(digitalRead(28));
         switch (axis)
         {
         case 0: // Pitch
-          Data.pitch_kp += delta * 0.5;
-          drawPID(0, 0, Data.pitch_kp, Data.pitch_ki, Data.pitch_kd);
+          pitch_kp += delta * 0.5;
+          drawPID(0, 0, pitch_kp, pitch_ki, pitch_kd);
+          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
           break;
         
         case 1: // Roll
-          Data.roll_kp += delta * 0.5;
-          drawPID(1, 0, Data.roll_kp, Data.roll_ki, Data.roll_kd);
+          roll_kp += delta * 0.5;
+          drawPID(1, 0, roll_kp, roll_ki, roll_kd);
+          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
           break;
 
         case 2: // Yaw
-          Data.yaw_kp += delta * 0.5;
-          drawPID(2, 0, Data.yaw_kp, Data.yaw_ki, Data.yaw_kd);
+          yaw_kp += delta * 0.5;
+          drawPID(2, 0, yaw_kp, yaw_ki, yaw_kd);
+          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
           break;
         }
         break;
@@ -286,18 +309,21 @@ Serial.println(digitalRead(28));
         switch (axis)
         {
         case 0: // Pitch
-          Data.pitch_ki += delta * 0.05;
-          drawPID(0, 1, Data.pitch_kp, Data.pitch_ki, Data.pitch_kd);
+          pitch_ki += delta * 0.05;
+          drawPID(0, 1, pitch_kp, pitch_ki, pitch_kd);
+          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
           break;
         
         case 1: // Roll
-          Data.roll_ki += delta * 0.05;
-          drawPID(1, 1, Data.roll_kp, Data.roll_ki, Data.roll_kd);
+          roll_ki += delta * 0.05;
+          drawPID(1, 1, roll_kp, roll_ki, roll_kd);
+          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
           break;
 
         case 2: // Yaw
-          Data.yaw_ki += delta * 0.05;
-          drawPID(2, 1, Data.yaw_kp, Data.yaw_ki, Data.yaw_kd);
+          yaw_ki += delta * 0.05;
+          drawPID(2, 1, yaw_kp, yaw_ki, yaw_kd);
+          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
           break;
         }
         break;
@@ -306,18 +332,21 @@ Serial.println(digitalRead(28));
         switch (axis)
         {
         case 0: // Pitch
-          Data.pitch_kd += delta * 0.2;
-          drawPID(0, 2, Data.pitch_kp, Data.pitch_ki, Data.pitch_kd);
+          pitch_kd += delta * 0.2;
+          drawPID(0, 2, pitch_kp, pitch_ki, pitch_kd);
+          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
           break;
         
         case 1: // Roll
-          Data.roll_kd += delta * 0.2;
-          drawPID(1, 2, Data.roll_kp, Data.roll_ki, Data.roll_kd);
+          roll_kd += delta * 0.2;
+          drawPID(1, 2, roll_kp, roll_ki, roll_kd);
+          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
           break;
 
         case 2: // Yaw
-          Data.yaw_kd += delta * 0.02;
-          drawPID(2, 2, Data.yaw_kp, Data.yaw_ki, Data.yaw_kd);
+          yaw_kd += delta * 0.02;
+          drawPID(2, 2, yaw_kp, yaw_ki, yaw_kd);
+          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
           break;
         }
         break;
@@ -329,9 +358,10 @@ Serial.println(digitalRead(28));
       return;
     }
     
- 
+    sendData();
+    delay(100);
   }
-}*/
+}
 
 
 
@@ -348,7 +378,7 @@ void loop()
   }
 
   if(CalibratePID){
-   // Calibration();
+   Calibration();
   } 
 
 
