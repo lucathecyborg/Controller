@@ -17,14 +17,14 @@ struct message
   joystickValues joystickL; // 6 bytes
   joystickValues joystickR ; // 6 bytes
   uint8_t PidAxis=3;    // 1 byte
-  float kp=1.5, ki=0.05, kd=0.8; // 12 bytes
+  float kp=0.8, ki=0.02, kd=0.4; // 12 bytes - MUST match drone defaults!
 };
 
 
 
-  float roll_kp = 1.5, roll_ki = 0.05, roll_kd = 0.8;  
-  float pitch_kp = 1.5, pitch_ki = 0.05, pitch_kd = 0.8;
-  float yaw_kp = 1.5, yaw_ki = 0.05, yaw_kd = 0.8; 
+  float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;  
+  float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
+  float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05; 
 
 
 const byte address[6] = "NODE1";
@@ -207,32 +207,18 @@ void drawPID(int axis, int variable, float kp, float ki, float kd){
 
 //Send data to the drone
 void sendData(){
-
- /* Data.joystickL = joystickL.getValues();
-  Data.joystickR = joystickR.getValues();  */
-    Data.joystickL.x = 512;
-  Data.joystickL.y = 512;
-  Data.joystickL.button = 0;
-
-  Data.joystickR.x = 512;
-  Data.joystickR.y = 512;
-  Data.joystickR.button = 0;
+  // Get actual joystick values (not hardcoded!)
+  Data.joystickL = joystickL.getValues();
+  Data.joystickR = joystickR.getValues();
+  
   Data.pot1 = analogRead(A0);
   Serial.println(Data.pot1);
-  /*Serial.print("X:  ");
-  Serial.print(Data.joystickL.x);
-  Serial.print("    Y:  ");
-  Serial.println(Data.joystickL.y);
-
-  */
 
   radio.write(&Data, sizeof(Data));
   if (radio.isAckPayloadAvailable())
   {
     radio.read(&DroneBattery, sizeof(DroneBattery));
   }
-
-  
 }
 
 
@@ -309,19 +295,19 @@ Serial.println(digitalRead(28));
         switch (axis)
         {
         case 0: // Pitch
-          pitch_ki += delta * 0.05;
+          pitch_ki += delta * 0.005;
           drawPID(0, 1, pitch_kp, pitch_ki, pitch_kd);
           setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
           break;
         
         case 1: // Roll
-          roll_ki += delta * 0.05;
+          roll_ki += delta * 0.005;
           drawPID(1, 1, roll_kp, roll_ki, roll_kd);
           setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
           break;
 
         case 2: // Yaw
-          yaw_ki += delta * 0.05;
+          yaw_ki += delta * 0.002;
           drawPID(2, 1, yaw_kp, yaw_ki, yaw_kd);
           setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
           break;
@@ -332,19 +318,19 @@ Serial.println(digitalRead(28));
         switch (axis)
         {
         case 0: // Pitch
-          pitch_kd += delta * 0.2;
+          pitch_kd += delta * 0.05;
           drawPID(0, 2, pitch_kp, pitch_ki, pitch_kd);
           setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
           break;
         
         case 1: // Roll
-          roll_kd += delta * 0.2;
+          roll_kd += delta * 0.05;
           drawPID(1, 2, roll_kp, roll_ki, roll_kd);
           setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
           break;
 
         case 2: // Yaw
-          yaw_kd += delta * 0.02;
+          yaw_kd += delta * 0.01;
           drawPID(2, 2, yaw_kp, yaw_ki, yaw_kd);
           setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
           break;
