@@ -34,13 +34,15 @@ void initDisplay()
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0, 0);
+  display.drawBitmap(18, 0, drone_init_screen, 90, 60, 1);
+  display.display();
 }
 
 void drawDisplay(int power, bool Light)
 {
 
   static int lastPowerPercent = -100; // last shown % on screen
-  int powerPercent = map(power, 0, 1020, 0, 100);
+  int powerPercent = map(power, 0, 1023, 0, 100);
 
   int DroneBatteryIndex = map(DroneBattery, 0, 100, 0, 6);
   DroneBatteryIndex = constrain(DroneBatteryIndex, 0, 6);
@@ -68,6 +70,7 @@ void drawDisplay(int power, bool Light)
     display.print(lastPowerPercent);
     display.print('%');
   }
+
   if (Light == 0)
   {
     display.drawBitmap(24, 46, lightOFF, 13, 14, 1);
@@ -107,16 +110,19 @@ void setup()
   Serial.begin(9600);
   delay(100);
   Serial.println("Contoller starting...");
-
+  initDisplay();
+  delay(1000);
+  pinMode(THROTTLE_PIN, INPUT);
   if (!initRadio())
   {
+    display.clearDisplay();
+    display.drawBitmap(2, 9, radio_failed_screen, 123, 46, 1);
+    display.display();
     while (1)
     {
       delay(1000);
     }
   }
-
-  pinMode(THROTTLE_PIN, INPUT);
 }
 
 void loop()
