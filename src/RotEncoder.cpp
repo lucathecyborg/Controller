@@ -1,15 +1,18 @@
 #include <Arduino.h>
 #include "RotEncoder.h"
 
-Encoder::Encoder()
+Encoder::Encoder(int clk1, int dt1, int sw1)
 {
-    pinMode(outputA, INPUT);
-    pinMode(outputB, INPUT);
-    pinMode(buttonOutput, INPUT_PULLUP);
+    clk = clk1;
+    dt = dt1;
+    sw = sw1;
+    pinMode(clk, INPUT);
+    pinMode(dt, INPUT);
+    pinMode(sw, INPUT_PULLUP);
 
-    aLastState = digitalRead(outputA);
-    buttonLastState = digitalRead(buttonOutput);
-    bState = digitalRead(outputB);
+    aLastState = digitalRead(clk);
+    buttonLastState = digitalRead(sw);
+    bState = digitalRead(dt);
     lastDebounceTime = 0;
     lastButtonDebounceTime = 0; // Initialize
 }
@@ -24,7 +27,7 @@ int Encoder::compare()
             lastDebounceTime = currentTime;
 
             // Read bState RIGHT NOW instead of using the stored value
-            int currentB = digitalRead(outputB);
+            int currentB = digitalRead(dt);
 
             if (currentB != aState)
             {
@@ -40,9 +43,9 @@ int Encoder::compare()
 }
 void Encoder::readStates()
 {
-    aState = digitalRead(outputA);
-    bState = digitalRead(outputB);
-    buttonState = digitalRead(buttonOutput);
+    aState = digitalRead(clk);
+    bState = digitalRead(dt);
+    buttonState = digitalRead(sw);
 }
 
 void Encoder::resetStates()
