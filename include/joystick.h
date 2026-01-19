@@ -1,10 +1,12 @@
 #include <Arduino.h>
+#pragma pack(push,1)
 struct joystickValues
 {
   uint16_t x;
   uint16_t y;
   bool button;
 };
+#pragma pack(pop)
 
 
 class joystick{
@@ -39,6 +41,15 @@ class joystick{
 
     bool getButton(){
         return !digitalRead(pinButton);
+    };
+
+    void printValues(){
+        Serial.print("X: ");
+        Serial.print(getX());
+        Serial.print(" Y: ");
+        Serial.print(getY());
+        Serial.print(" Button: ");
+        Serial.println(getButton());
     };
 
 };

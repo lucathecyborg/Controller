@@ -10,48 +10,42 @@
 #include "joystick.h"
 #include "button.h"
 
-//Size 27 bytes (max 32)
+// Size 27 bytes (max 32)
+#pragma pack(push, 1)
 struct message
 {
-  uint16_t pot1; //2 bytes
-  joystickValues joystickL; // 6 bytes
-  joystickValues joystickR ; // 6 bytes
-  uint8_t PidAxis=3;    // 1 byte
-  float kp=0.8, ki=0.02, kd=0.4; // 12 bytes - MUST match drone defaults!
+  uint16_t pot1;
+  joystickValues joystickL;
+  joystickValues joystickR;
+  uint8_t PidAxis;
+  float kp, ki, kd;
 };
+#pragma pack(pop)
 
-
-
-  float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;  
-  float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
-  float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05; 
-
+bool firstSend = true;
+float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;
+float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
+float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05;
 
 const byte address[6] = "NODE1";
 RF24 radio(9, 10); // CE, CSN
 
-joystick joystickL(A1,A2,22);
-joystick joystickR(A3,A4,23);
-Button calibrationButton(24,500,true);
-Button pidSelector(25,50,true);
-RotaryEncoder PidValue(26,27,28);
-
+joystick joystickL(A1, A2, 22);
+joystick joystickR(A3, A4, 23);
+Button calibrationButton(24, 500, true);
+Button pidSelector(25, 50, true);
+Encoder PidValue();
 
 message Data;
 
-
 uint16_t DroneBattery;
-uint16_t ControllerBattery = 100; 
+uint16_t ControllerBattery = 20;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-
-
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-
 bool CalibratePID = false;
-
 
 // Display useful information during normal operation
 void drawDisplay(bool Light, int power)
@@ -85,10 +79,12 @@ void drawDisplay(bool Light, int power)
     display.print(lastPowerPercent);
     display.print('%');
   }
-  if(Light==0){
+  if (Light == 0)
+  {
     display.drawBitmap(24, 46, lightOFF, 13, 14, 1);
   }
-  else{
+  else
+  {
     display.drawBitmap(24, 46, lightON, 13, 14, 1);
   }
 
@@ -101,7 +97,6 @@ void drawDisplay(bool Light, int power)
   display.print("Drone");
 
   display.drawLine(0, 32, 126, 32, 1);
-
 
   display.setCursor(14, 37);
   display.print("Lights");
@@ -117,9 +112,6 @@ void drawDisplay(bool Light, int power)
   display.display();
 }
 
-
-
-
 void setup()
 {
   Serial.begin(9600);
@@ -129,6 +121,7 @@ void setup()
     while (1)
       ;
   }
+  radio.setChannel(125);
   radio.setPALevel(RF24_PA_LOW);
   radio.openWritingPipe(address);
   radio.stopListening();
@@ -139,80 +132,94 @@ void setup()
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0, 0);
-  
 
   pinMode(A0, INPUT);
-  
 }
 
-
-//Display PID values during calibration
-void drawPID(int axis, int variable, float kp, float ki, float kd){
+// Display PID values during calibration
+void drawPID(int axis, int variable, float kp, float ki, float kd)
+{
 
   display.clearDisplay();
   display.setTextColor(1);
   display.setTextSize(2);
   display.setTextWrap(false);
-  display.setCursor(17,24);
+  display.setCursor(17, 24);
   display.print("P");
 
-  display.setCursor(58,23);
+  display.setCursor(58, 23);
   display.print("I");
 
-  display.setCursor(99,25);
+  display.setCursor(99, 25);
   display.print("D");
 
   display.setTextSize(1);
 
-  display.setCursor(10,44);
+  display.setCursor(10, 44);
   display.print(kp);
 
-  display.setCursor(51,45);
+  display.setCursor(51, 45);
   display.print(ki);
 
-  display.setCursor(92,46);
+  display.setCursor(92, 46);
   display.print(kd);
 
-  switch (variable){
-    case 0:
-      display.drawRect(5, 41, 33, 13, 1);
-      break;
-    case 1:
-      display.drawRect(46, 42, 33, 13, 1);
-      break;
-    case 2:
-      display.drawRect(86, 43, 33, 13, 1);
-      break;
+  switch (variable)
+  {
+  case 0:
+    display.drawRect(5, 41, 33, 13, 1);
+    break;
+  case 1:
+    display.drawRect(46, 42, 33, 13, 1);
+    break;
+  case 2:
+    display.drawRect(86, 43, 33, 13, 1);
+    break;
   }
-
 
   display.setTextSize(1);
-  display.setCursor(37,6);
-  switch (axis){
-      case 0:
-          display.print("Pitch PID");
-          break;
-      case 1:
-          display.print("Roll PID");
-          break;
-      case 2:
-          display.print("Yaw PID");
-          break;
+  display.setCursor(37, 6);
+  switch (axis)
+  {
+  case 0:
+    display.print("Pitch PID");
+    break;
+  case 1:
+    display.print("Roll PID");
+    break;
+  case 2:
+    display.print("Yaw PID");
+    break;
   }
-
 
   display.display();
 }
 
-
-//Send data to the drone
-void sendData(){
+// Send data to the drone
+void sendData()
+{
+  if (firstSend)
+  {
+    Data.PidAxis = 3; // 1 byte
+    Data.kp = 0.8;
+    Data.ki = 0.02;
+    Data.kd = 0.4; // 12 bytes - MUST match drone defaults!
+    firstSend = false;
+  }
   // Get actual joystick values (not hardcoded!)
-  Data.joystickL = joystickL.getValues();
-  Data.joystickR = joystickR.getValues();
-  
+  // Data.joystickL1 = joystickL.getValues();
+  // Data.joystickR1 = joystickR.getValues();
+  Data.joystickL.x = 512;
+  Data.joystickL.y = 512;
+  Data.joystickL.button = false;
+
+  Data.joystickR.x = 512;
+  Data.joystickR.y = 512;
+  Data.joystickR.button = false;
+
   Data.pot1 = analogRead(A0);
-  Serial.println(Data.pot1);
+  // joystickL.printValues();
+  // joystickR.printValues();
 
   radio.write(&Data, sizeof(Data));
   if (radio.isAckPayloadAvailable())
@@ -221,32 +228,32 @@ void sendData(){
   }
 }
 
-
-
 // Update the PID values in the Data struct
-void setPidSelectorValues(uint8_t axis, float p, float i, float d){
-      Data.kd=d;
-      Data.kp=p;
-      Data.ki=i;
-      Data.PidAxis=axis; 
- 
+void setPidSelectorValues(uint8_t axis, float p, float i, float d)
+{
+  Data.kd = d;
+  Data.kp = p;
+  Data.ki = i;
+  Data.PidAxis = axis;
 }
 
-
-
 // PID Calibration function
-void Calibration(){
+void Calibration()
+{
   int axis = 0;
   int value = 0;
 
-  while(true){
-    
-    pidSelector.update(); 
+  while (true)
+  {
+
+    pidSelector.update();
 
     // Axis selector
-    if(pidSelector.wasPressed()){
+    if (pidSelector.wasPressed())
+    {
       axis++;
-      if(axis > 2){
+      if (axis > 2)
+      {
         axis = 0;
       }
       Serial.println("pid Selector was pressed");
@@ -255,122 +262,122 @@ void Calibration(){
     PidValue.update();
 
     // Variable selector
-    if(PidValue.buttonWasPressed()){
+    if (PidValue.buttonWasPressed())
+    {
       value++;
-      if(value > 2){
+      if (value > 2)
+      {
         value = 0;
       }
       Serial.println("pid value was pressed");
     }
 
     int delta = PidValue.getDelta();
-Serial.print("Button pin reading: ");
-Serial.println(digitalRead(28));
+    Serial.print("Button pin reading: ");
+    Serial.println(digitalRead(28));
 
-    switch (value){
-      case 0: // P
-        switch (axis)
-        {
-        case 0: // Pitch
-          pitch_kp += delta * 0.5;
-          drawPID(0, 0, pitch_kp, pitch_ki, pitch_kd);
-          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
-          break;
-        
-        case 1: // Roll
-          roll_kp += delta * 0.5;
-          drawPID(1, 0, roll_kp, roll_ki, roll_kd);
-          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
-          break;
-
-        case 2: // Yaw
-          yaw_kp += delta * 0.5;
-          drawPID(2, 0, yaw_kp, yaw_ki, yaw_kd);
-          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
-          break;
-        }
+    switch (value)
+    {
+    case 0: // P
+      switch (axis)
+      {
+      case 0: // Pitch
+        pitch_kp += delta * 0.5;
+        drawPID(0, 0, pitch_kp, pitch_ki, pitch_kd);
+        setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
         break;
 
-      case 1: // I
-        switch (axis)
-        {
-        case 0: // Pitch
-          pitch_ki += delta * 0.005;
-          drawPID(0, 1, pitch_kp, pitch_ki, pitch_kd);
-          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
-          break;
-        
-        case 1: // Roll
-          roll_ki += delta * 0.005;
-          drawPID(1, 1, roll_kp, roll_ki, roll_kd);
-          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
-          break;
-
-        case 2: // Yaw
-          yaw_ki += delta * 0.002;
-          drawPID(2, 1, yaw_kp, yaw_ki, yaw_kd);
-          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
-          break;
-        }
+      case 1: // Roll
+        roll_kp += delta * 0.5;
+        drawPID(1, 0, roll_kp, roll_ki, roll_kd);
+        setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
         break;
 
-      case 2: // D
-        switch (axis)
-        {
-        case 0: // Pitch
-          pitch_kd += delta * 0.05;
-          drawPID(0, 2, pitch_kp, pitch_ki, pitch_kd);
-          setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
-          break;
-        
-        case 1: // Roll
-          roll_kd += delta * 0.05;
-          drawPID(1, 2, roll_kp, roll_ki, roll_kd);
-          setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
-          break;
-
-        case 2: // Yaw
-          yaw_kd += delta * 0.01;
-          drawPID(2, 2, yaw_kp, yaw_ki, yaw_kd);
-          setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
-          break;
-        }
+      case 2: // Yaw
+        yaw_kp += delta * 0.5;
+        drawPID(2, 0, yaw_kp, yaw_ki, yaw_kd);
+        setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
         break;
+      }
+      break;
+
+    case 1: // I
+      switch (axis)
+      {
+      case 0: // Pitch
+        pitch_ki += delta * 0.005;
+        drawPID(0, 1, pitch_kp, pitch_ki, pitch_kd);
+        setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
+        break;
+
+      case 1: // Roll
+        roll_ki += delta * 0.005;
+        drawPID(1, 1, roll_kp, roll_ki, roll_kd);
+        setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
+        break;
+
+      case 2: // Yaw
+        yaw_ki += delta * 0.002;
+        drawPID(2, 1, yaw_kp, yaw_ki, yaw_kd);
+        setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
+        break;
+      }
+      break;
+
+    case 2: // D
+      switch (axis)
+      {
+      case 0: // Pitch
+        pitch_kd += delta * 0.05;
+        drawPID(0, 2, pitch_kp, pitch_ki, pitch_kd);
+        setPidSelectorValues(0, pitch_kp, pitch_ki, pitch_kd);
+        break;
+
+      case 1: // Roll
+        roll_kd += delta * 0.05;
+        drawPID(1, 2, roll_kp, roll_ki, roll_kd);
+        setPidSelectorValues(1, roll_kp, roll_ki, roll_kd);
+        break;
+
+      case 2: // Yaw
+        yaw_kd += delta * 0.01;
+        drawPID(2, 2, yaw_kp, yaw_ki, yaw_kd);
+        setPidSelectorValues(2, yaw_kp, yaw_ki, yaw_kd);
+        break;
+      }
+      break;
     }
- 
+
     calibrationButton.update();
-    if(calibrationButton.wasPressed()){
+    if (calibrationButton.wasPressed())
+    {
       CalibratePID = false;
       return;
     }
-    
+
     sendData();
     delay(100);
   }
 }
 
-
-
-
-
-
-
 void loop()
 {
   calibrationButton.update();
-  if (calibrationButton.wasPressed()) {
+  if (calibrationButton.wasPressed())
+  {
     CalibratePID = !CalibratePID;
     Serial.println("entering calibration");
   }
 
-  if(CalibratePID){
-   Calibration();
-  } 
-  else{
-    Data.PidAxis=3;
+  if (CalibratePID)
+  {
+    Calibration();
+  }
+  else
+  {
+    Data.PidAxis = 3;
   }
 
- 
   sendData();
   drawDisplay(1, Data.pot1);
   delay(100);
