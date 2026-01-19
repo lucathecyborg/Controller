@@ -8,6 +8,7 @@
 #include "communication.h"
 #include "RotEncoder.h"
 #include "joystick.h"
+#include "button.h"
 #include "bitmaps.h"
 
 #define THROTTLE_PIN A0
@@ -23,9 +24,27 @@ Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 joystick joystickL(A1, A2, 22);
 joystick joystickR(A3, A4, 23);
 Encoder PidValueSelector(26, 27, 28);
+Button pidAxisSelector(25);
+Button calibrationToggle(24);
 
-uint16_t DroneBattery;
-int ControllerBattery;
+uint8_t DroneBattery;
+uint8_t ControllerBattery;
+
+float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;
+float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
+float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05;
+
+float *pid_values[3][3] = {
+    {&pitch_kp, &pitch_ki, &pitch_kd}, // axis 0: Pitch
+    {&roll_kp, &roll_ki, &roll_kd},    // axis 1: Roll
+    {&yaw_kp, &yaw_ki, &yaw_kd}        // axis 2: Yaw
+};
+
+float multipliers[3][3] = {
+    {0.5, 0.005, 0.05}, // Pitch P, I, D multipliers
+    {0.5, 0.005, 0.05}, // Roll P, I, D multipliers
+    {0.5, 0.002, 0.01}  // Yaw P, I, D multipliers
+};
 
 void initDisplay()
 {
@@ -104,6 +123,74 @@ void drawDisplay(int power, bool Light)
   display.display();
 }
 
+void setPidSelectorValues(uint8_t axis, float p, float i, float d)
+{
+  txData.kd = d;
+  txData.kp = p;
+  txData.ki = i;
+  txData.pidAxis = axis;
+}
+
+void PIDCalibration()
+{
+  uint8_t axis = 0;
+  int value = 0;
+
+  while (true)
+  {
+
+    pidAxisSelector.update();
+    calibrationToggle.update();
+    PidValueSelector.readStates();
+
+    int rotation = PidValueSelector.compare();
+
+    if (pidAxisSelector.wasPressed())
+    {
+      axis++;
+      if (axis > 2)
+      {
+        axis = 0;
+      }
+    }
+
+    if (PidValueSelector.readButton())
+    {
+      value++;
+      if (value > 2)
+      {
+        value = 0;
+      }
+    }
+
+    *pid_values[axis][value] = max(0.0f, *pid_values[axis][value] + rotation * multipliers[axis][value]);
+    setPidSelectorValues(axis, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
+    // DrawPIDHere
+
+    transmitData();
+    delay(100);
+    if (calibrationToggle.wasPressed())
+    {
+      return;
+    }
+  }
+}
+
+void readInputs()
+{
+  joystickL.readData();
+  joystickR.readData();
+  txData.leftX = joystickL.getX();
+  txData.leftY = joystickL.getY();
+  txData.leftButton = joystickL.wasPressed();
+
+  txData.rightX = joystickR.getX();
+  txData.rightY = joystickR.getY();
+  txData.rightButton = joystickR.wasPressed();
+
+  txData.throttle = analogRead(THROTTLE_PIN);
+}
+
 void setup()
 {
 
@@ -131,6 +218,12 @@ void loop()
 
   // Read all inputs
 
+  calibrationToggle.update();
+
+  if (calibrationToggle.wasReleased())
+  {
+    PIDCalibration();
+  }
   // Transmit at regular intervals
   if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
   {
@@ -138,15 +231,7 @@ void loop()
 
     // Transmit data
     bool success = transmitData();
-    if (success && radio.isAckPayloadAvailable())
-    {
-      radio.read(&DroneBattery, sizeof(DroneBattery));
-      updateCommStats(success, true);
-    }
-    else
-    {
-      updateCommStats(success, false);
-    }
+    updateCommStats(success, radio.isAckPayloadAvailable());
 
     // Update statistics
 

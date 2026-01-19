@@ -45,8 +45,12 @@ void addChecksum(message *msg)
     msg->checksum = calculateChecksum(msg);
 }
 
+void readInputs();
+
 bool transmitData()
 {
+
+    readInputs();
     // Add checksum before transmitting
     addChecksum(&txData);
 
