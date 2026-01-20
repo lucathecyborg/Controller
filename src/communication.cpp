@@ -16,7 +16,7 @@ bool initRadio()
         return false;
     }
 
-    radio.setPALevel(RF24_PA_HIGH);
+    radio.setPALevel(RF24_PA_LOW);
     radio.setDataRate(RF24_250KBPS);
     radio.setChannel(125); // Avoid WiFi interference
     radio.enableAckPayload();
@@ -57,15 +57,16 @@ bool transmitData()
     // Attempt to send the data
     bool txSuccess = radio.write(&txData, sizeof(txData));
 
-    bool ackReceived = false;
-
     if (txSuccess)
     {
         // Check if acknowledgment payload was received
         if (radio.isAckPayloadAvailable())
         {
             radio.read(&rxBattery, sizeof(rxBattery));
-            ackReceived = true;
+        }
+        else
+        {
+            Serial.println("ACK payload not avalible");
         }
     }
 

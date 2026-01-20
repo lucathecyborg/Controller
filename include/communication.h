@@ -8,7 +8,7 @@
 #include <RF24.h>
 
 // Pin definitions for Arduino
-// Standard Arduino SPI pins: SCK=13, MISO=12, MOSI=11
+// Standard Arduino SPI pins: SCK=52, MISO=50, MOSI=51
 #define CE_PIN 9
 #define CSN_PIN 10
 

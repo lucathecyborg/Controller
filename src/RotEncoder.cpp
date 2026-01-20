@@ -31,16 +31,20 @@ int Encoder::compare()
 
             if (currentB != aState)
             {
+                aLastState = aState; // Only update on valid rotation
                 return +1;
             }
             else
             {
+                aLastState = aState; // Only update on valid rotation
                 return -1;
             }
         }
     }
+    // DON'T update aLastState here if no rotation detected
     return 0;
 }
+
 void Encoder::readStates()
 {
     aState = digitalRead(clk);
@@ -61,9 +65,11 @@ bool Encoder::readButton()
         unsigned long currentTime = millis();
         if ((currentTime - lastButtonDebounceTime) > buttonDebounceDelay)
         {
-            lastButtonDebounceTime = currentTime; // Update debounce time
+            lastButtonDebounceTime = currentTime;
+            buttonLastState = buttonState;
             return true;
         }
     }
+    buttonLastState = buttonState;
     return false;
 }

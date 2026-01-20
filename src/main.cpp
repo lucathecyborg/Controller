@@ -27,7 +27,6 @@ Encoder PidValueSelector(26, 27, 28);
 Button pidAxisSelector(25);
 Button calibrationToggle(24);
 
-uint8_t DroneBattery;
 uint8_t ControllerBattery;
 
 float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;
@@ -63,7 +62,7 @@ void drawDisplay(int power, bool Light)
   static int lastPowerPercent = -100; // last shown % on screen
   int powerPercent = map(power, 0, 1023, 0, 100);
 
-  int DroneBatteryIndex = map(DroneBattery, 0, 100, 0, 6);
+  int DroneBatteryIndex = map(rxBattery, 0, 100, 0, 6);
   DroneBatteryIndex = constrain(DroneBatteryIndex, 0, 6);
 
   int ControllerBatteryIndex = map(ControllerBattery, 0, 100, 0, 6);
@@ -131,29 +130,80 @@ void setPidSelectorValues(uint8_t axis, float p, float i, float d)
   txData.pidAxis = axis;
 }
 
+void drawPID(int axis, int variable, float kp, float ki, float kd)
+{
+
+  display.clearDisplay();
+  display.setTextColor(1);
+  display.setTextSize(2);
+  display.setTextWrap(false);
+  display.setCursor(17, 24);
+  display.print("P");
+
+  display.setCursor(58, 23);
+  display.print("I");
+
+  display.setCursor(99, 25);
+  display.print("D");
+
+  display.setTextSize(1);
+
+  display.setCursor(10, 44);
+  display.print(kp);
+
+  display.setCursor(51, 45);
+  display.print(ki);
+
+  display.setCursor(92, 46);
+  display.print(kd);
+
+  switch (variable)
+  {
+  case 0:
+    display.drawRect(5, 41, 33, 13, 1);
+    break;
+  case 1:
+    display.drawRect(46, 42, 33, 13, 1);
+    break;
+  case 2:
+    display.drawRect(86, 43, 33, 13, 1);
+    break;
+  }
+
+  display.setTextSize(1);
+  display.setCursor(37, 6);
+  switch (axis)
+  {
+  case 0:
+    display.print("Pitch PID");
+    break;
+  case 1:
+    display.print("Roll PID");
+    break;
+  case 2:
+    display.print("Yaw PID");
+    break;
+  }
+
+  display.display();
+}
+
 void PIDCalibration()
 {
   uint8_t axis = 0;
   int value = 0;
+  Serial.println("calibration");
+
+  // Initial draw
+  drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
 
   while (true)
   {
-
     pidAxisSelector.update();
     calibrationToggle.update();
     PidValueSelector.readStates();
 
-    int rotation = PidValueSelector.compare();
-
-    if (pidAxisSelector.wasPressed())
-    {
-      axis++;
-      if (axis > 2)
-      {
-        axis = 0;
-      }
-    }
-
+    // Check encoder button press to change selected variable (P/I/D)
     if (PidValueSelector.readButton())
     {
       value++;
@@ -161,15 +211,37 @@ void PIDCalibration()
       {
         value = 0;
       }
+      drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
+      PidValueSelector.resetStates();
+      delay(50); // Debounce
+      continue;
     }
 
-    *pid_values[axis][value] = max(0.0f, *pid_values[axis][value] + rotation * multipliers[axis][value]);
-    setPidSelectorValues(axis, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
-    // DrawPIDHere
+    // Check rotation to modify the selected value
+    int rotation = PidValueSelector.compare();
+    if (rotation != 0)
+    {
+      *pid_values[axis][value] = max(0.0f, *pid_values[axis][value] + rotation * multipliers[axis][value]);
+      setPidSelectorValues(axis, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
+      drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
+      transmitData();
+    }
 
-    transmitData();
+    // Check axis selector button to change axis (Pitch/Roll/Yaw)
+    if (pidAxisSelector.wasPressed())
+    {
+      axis++;
+      if (axis > 2)
+      {
+        axis = 0;
+      }
+      drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
+    }
+
+    PidValueSelector.resetStates();
     delay(100);
-    if (calibrationToggle.wasPressed())
+
+    if (calibrationToggle.wasReleased())
     {
       return;
     }
@@ -193,9 +265,12 @@ void readInputs()
 
 void setup()
 {
-
+  pinMode(CSN_PIN, OUTPUT);
+  digitalWrite(CSN_PIN, HIGH);
+  SPI.begin();
   Serial.begin(9600);
-  delay(100);
+
+  delay(200);
   Serial.println("Contoller starting...");
   initDisplay();
   delay(1000);
@@ -239,7 +314,9 @@ void loop()
     if (now - lastPrintTime >= 200)
     {
       lastPrintTime = now;
-      printTransmittedData();
+      //  printTransmittedData();
     }
+
+    drawDisplay(txData.throttle, 1);
   }
 }

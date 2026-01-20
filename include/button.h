@@ -1,11 +1,12 @@
 #pragma once
-
+#include "Arduino.h"
 class Button
 {
 private:
   uint8_t pin;
   bool currentState;
   bool previousState;
+  bool lastReading;
   unsigned long lastDebounceTime;
   unsigned long debounceDelay;
 

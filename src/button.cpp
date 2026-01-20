@@ -5,33 +5,33 @@ Button::Button(uint8_t buttonPin, unsigned long debounce)
 {
   pin = buttonPin;
   debounceDelay = debounce;
-  currentState = false;
-  previousState = false;
   lastDebounceTime = 0;
   pinMode(pin, INPUT_PULLUP);
   currentState = !digitalRead(pin); // Invert for pullup (pressed = LOW)
   previousState = currentState;
+  lastReading = currentState;
 }
 
 void Button::update()
 {
+  // Always update previousState to currentState at the start
+  // This ensures wasPressed/wasReleased only return true for one update cycle
+  previousState = currentState;
+
   // Invert reading for pullup (pressed = LOW)
   bool reading = !digitalRead(pin);
 
-  // Check if the button state has changed
-  if (reading != currentState)
+  // Reset debounce timer if reading changed
+  if (reading != lastReading)
   {
     lastDebounceTime = millis();
+    lastReading = reading;
   }
 
   // Only update state if debounce delay has passed
   if ((millis() - lastDebounceTime) > debounceDelay)
   {
-    if (reading != currentState)
-    {
-      previousState = currentState;
-      currentState = reading;
-    }
+    currentState = reading;
   }
 }
 
