@@ -4,9 +4,9 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
+#include <RotaryEncoder.h>
 
 #include "communication.h"
-#include "RotEncoder.h"
 #include "joystick.h"
 #include "button.h"
 #include "bitmaps.h"
@@ -17,13 +17,16 @@
 
 // Timing
 unsigned long lastTransmitTime = 0;
-const unsigned long TRANSMIT_INTERVAL = 100; // Send every 100ms (10Hz)
+const unsigned long TRANSMIT_INTERVAL = 100;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 joystick joystickL(A1, A2, 22);
 joystick joystickR(A3, A4, 23);
-Encoder PidValueSelector(26, 27, 28);
+
+// Encoder setup - same as working example
+RotaryEncoder pidEncoder(26, 27, RotaryEncoder::LatchMode::FOUR3);
+Button pidEncoderButton(28);
 Button pidAxisSelector(25);
 Button calibrationToggle(24);
 
@@ -34,16 +37,14 @@ float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
 float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05;
 
 float *pid_values[3][3] = {
-    {&pitch_kp, &pitch_ki, &pitch_kd}, // axis 0: Pitch
-    {&roll_kp, &roll_ki, &roll_kd},    // axis 1: Roll
-    {&yaw_kp, &yaw_ki, &yaw_kd}        // axis 2: Yaw
-};
+    {&pitch_kp, &pitch_ki, &pitch_kd},
+    {&roll_kp, &roll_ki, &roll_kd},
+    {&yaw_kp, &yaw_ki, &yaw_kd}};
 
 float multipliers[3][3] = {
-    {0.5, 0.005, 0.05}, // Pitch P, I, D multipliers
-    {0.5, 0.005, 0.05}, // Roll P, I, D multipliers
-    {0.5, 0.002, 0.01}  // Yaw P, I, D multipliers
-};
+    {0.5, 0.005, 0.05},
+    {0.5, 0.005, 0.05},
+    {0.5, 0.002, 0.01}};
 
 void initDisplay()
 {
@@ -58,8 +59,7 @@ void initDisplay()
 
 void drawDisplay(int power, bool Light)
 {
-
-  static int lastPowerPercent = -100; // last shown % on screen
+  static int lastPowerPercent = -100;
   int powerPercent = map(power, 0, 1023, 0, 100);
 
   int DroneBatteryIndex = map(rxBattery, 0, 100, 0, 6);
@@ -69,7 +69,7 @@ void drawDisplay(int power, bool Light)
   ControllerBatteryIndex = constrain(ControllerBatteryIndex, 0, 6);
 
   display.clearDisplay();
-  // Only update if the change is meaningful (≥2%)
+
   if (abs(powerPercent - lastPowerPercent) >= 2)
   {
     lastPowerPercent = powerPercent;
@@ -83,7 +83,6 @@ void drawDisplay(int power, bool Light)
   {
     display.setCursor(87, 37);
     display.print("Power");
-
     display.setCursor(89, 51);
     display.print(lastPowerPercent);
     display.print('%');
@@ -132,7 +131,6 @@ void setPidSelectorValues(uint8_t axis, float p, float i, float d)
 
 void drawPID(int axis, int variable, float kp, float ki, float kd)
 {
-
   display.clearDisplay();
   display.setTextColor(1);
   display.setTextSize(2);
@@ -192,39 +190,66 @@ void PIDCalibration()
 {
   uint8_t axis = 0;
   int value = 0;
-  Serial.println("calibration");
+  unsigned long lastPidTransmitTime = 0;
+
+  // Track encoder position - same pattern as working example
+  static int pos = 0;
+
+  Serial.println("=== PID Calibration Started ===");
+
+  // Reset encoder position
+  pidEncoder.setPosition(0);
+  pos = 0;
 
   // Initial draw
   drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
 
   while (true)
   {
+    unsigned long now = millis();
+
+    // CRITICAL: tick() must be called as frequently as possible
+    pidEncoder.tick();
+
     pidAxisSelector.update();
     calibrationToggle.update();
-    PidValueSelector.readStates();
+    pidEncoderButton.update();
 
     // Check encoder button press to change selected variable (P/I/D)
-    if (PidValueSelector.readButton())
+    if (pidEncoderButton.wasPressed())
     {
       value++;
       if (value > 2)
       {
         value = 0;
       }
+      Serial.print("Button pressed - selecting: ");
+      Serial.println(value == 0 ? "P" : (value == 1 ? "I" : "D"));
       drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
-      PidValueSelector.resetStates();
-      delay(50); // Debounce
       continue;
     }
 
-    // Check rotation to modify the selected value
-    int rotation = PidValueSelector.compare();
-    if (rotation != 0)
+    // Check rotation - exact same pattern as working example
+    int newPos = pidEncoder.getPosition();
+    if (pos != newPos)
     {
-      *pid_values[axis][value] = max(0.0f, *pid_values[axis][value] + rotation * multipliers[axis][value]);
+      int direction = (int)(pidEncoder.getDirection());
+      int delta = newPos - pos;
+
+      // Debug output
+      Serial.print("pos:");
+      Serial.print(newPos);
+      Serial.print(" dir:");
+      Serial.print(direction);
+      Serial.print(" delta:");
+      Serial.println(delta);
+
+      // Apply the change
+      *pid_values[axis][value] = max(0.0f, *pid_values[axis][value] + delta * multipliers[axis][value]);
       setPidSelectorValues(axis, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
       drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
-      transmitData();
+
+      pos = newPos;
     }
 
     // Check axis selector button to change axis (Pitch/Roll/Yaw)
@@ -235,14 +260,20 @@ void PIDCalibration()
       {
         axis = 0;
       }
+      Serial.print("Axis changed to: ");
+      Serial.println(axis == 0 ? "Pitch" : (axis == 1 ? "Roll" : "Yaw"));
       drawPID(axis, value, *pid_values[axis][0], *pid_values[axis][1], *pid_values[axis][2]);
     }
 
-    PidValueSelector.resetStates();
-    delay(100);
+    if (now - lastPidTransmitTime >= 100)
+    {
+      lastPidTransmitTime = now;
+      transmitData();
+    }
 
     if (calibrationToggle.wasReleased())
     {
+      Serial.println("=== PID Calibration Ended ===");
       return;
     }
   }
@@ -269,12 +300,15 @@ void setup()
   digitalWrite(CSN_PIN, HIGH);
   SPI.begin();
   Serial.begin(9600);
+  while (!Serial)
+    ; // Wait for serial - same as working example
 
   delay(200);
-  Serial.println("Contoller starting...");
+  Serial.println("Controller starting...");
   initDisplay();
   delay(1000);
   pinMode(THROTTLE_PIN, INPUT);
+
   if (!initRadio())
   {
     display.clearDisplay();
@@ -291,7 +325,8 @@ void loop()
 {
   unsigned long now = millis();
 
-  // Read all inputs
+  // Always tick encoder in main loop
+  pidEncoder.tick();
 
   calibrationToggle.update();
 
@@ -299,22 +334,17 @@ void loop()
   {
     PIDCalibration();
   }
-  // Transmit at regular intervals
+
   if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
   {
     lastTransmitTime = now;
 
-    // Transmit data
     bool success = transmitData();
     updateCommStats(success, radio.isAckPayloadAvailable());
 
-    // Update statistics
-
-    // Print data periodically
     if (now - lastPrintTime >= 200)
     {
       lastPrintTime = now;
-      //  printTransmittedData();
     }
 
     drawDisplay(txData.throttle, 1);
