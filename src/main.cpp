@@ -9,11 +9,20 @@
 #include "communication.h"
 #include "joystick.h"
 #include "button.h"
+#include "toggle_switch.h"
 #include "bitmaps.h"
 
 #define THROTTLE_PIN A0
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
+
+// flags
+#define FLAG_ARMED (1 << 0)          // bit 0: motors armed
+#define FLAG_ALT_HOLD (1 << 1)       // bit 1: altitude hold enabled
+#define FLAG_RETURN_TO_HOME (1 << 2) // enable return to home
+#define FLAG_SAFE_LANDING (1 << 3)   // enable safe landing
+#define FLAG_SET_HOME (1 << 4)       // set GPS home location
+#define FLAG_FREEZE (1 << 5)         // freeze input from controller
 
 // Timing
 unsigned long lastTransmitTime = 0;
@@ -23,6 +32,8 @@ Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 joystick joystickL(A1, A2, 22);
 joystick joystickR(A3, A4, 23);
+toggleSwitch flagSwitch(30, 31);
+toggleSwitch altitudeHold(32, 33);
 
 // Encoder setup - same as working example
 RotaryEncoder pidEncoder(26, 27, RotaryEncoder::LatchMode::FOUR3);
@@ -292,6 +303,27 @@ void readInputs()
   txData.rightButton = joystickR.wasPressed();
 
   txData.throttle = analogRead(THROTTLE_PIN);
+
+  txData.flags = 0;
+  switch (flagSwitch.readOutput())
+  {
+  case 1:
+    txData.flags |= FLAG_ARMED;
+    break;
+  case 2:
+    txData.flags |= FLAG_FREEZE;
+    break;
+  }
+
+  switch (altitudeHold.readOutput())
+  {
+  case 1:
+    txData.flags |= FLAG_ALT_HOLD;
+    break;
+  case 2:
+    txData.flags |= FLAG_RETURN_TO_HOME;
+    break;
+  }
 }
 
 void setup()
