@@ -27,25 +27,27 @@
 // Timing
 unsigned long lastTransmitTime = 0;
 const unsigned long TRANSMIT_INTERVAL = 100;
+bool armed;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 joystick joystickL(A1, A2, 22);
 joystick joystickR(A3, A4, 23);
-toggleSwitch flagSwitch(30, 31);
+toggleSwitch armToggle(30, 31);
 toggleSwitch altitudeHold(32, 33);
 
 // Encoder setup - same as working example
 RotaryEncoder pidEncoder(26, 27, RotaryEncoder::LatchMode::FOUR3);
+
 Button pidEncoderButton(28);
 Button pidAxisSelector(25);
 Button calibrationToggle(24);
 
 uint8_t ControllerBattery;
 
-float roll_kp = 0.8, roll_ki = 0.02, roll_kd = 0.4;
-float pitch_kp = 0.8, pitch_ki = 0.02, pitch_kd = 0.4;
-float yaw_kp = 1.5, yaw_ki = 0.01, yaw_kd = 0.05;
+float roll_kp = 3.0, roll_ki = 0.0, roll_kd = 0.5;
+float pitch_kp = 3.0, pitch_ki = 0.0, pitch_kd = 0.5;
+float yaw_kp = 3.0, yaw_ki = 0.0, yaw_kd = 0.0;
 
 float *pid_values[3][3] = {
     {&pitch_kp, &pitch_ki, &pitch_kd},
@@ -119,7 +121,7 @@ void drawDisplay(int power, bool Light)
   display.drawLine(0, 32, 126, 32, 1);
 
   display.setCursor(14, 37);
-  display.print("Lights");
+  display.print("Armed");
 
   const unsigned char *droneIMG;
   memcpy_P(&droneIMG, &batteryList[DroneBatteryIndex], sizeof(droneIMG));
@@ -305,14 +307,17 @@ void readInputs()
   txData.throttle = analogRead(THROTTLE_PIN);
 
   txData.flags = 0;
-  switch (flagSwitch.readOutput())
+  switch (armToggle.readOutput())
   {
   case 1:
     txData.flags |= FLAG_ARMED;
+    armed = true;
     break;
   case 2:
     txData.flags |= FLAG_FREEZE;
     break;
+  default:
+    armed = false;
   }
 
   switch (altitudeHold.readOutput())
@@ -330,11 +335,10 @@ void setup()
 {
   pinMode(CSN_PIN, OUTPUT);
   digitalWrite(CSN_PIN, HIGH);
-  SPI.begin();
-  Serial.begin(9600);
-  while (!Serial)
-    ; // Wait for serial - same as working example
 
+  Serial.begin(9600);
+  delay(100);
+  SPI.begin();
   delay(200);
   Serial.println("Controller starting...");
   initDisplay();
@@ -379,6 +383,6 @@ void loop()
       lastPrintTime = now;
     }
 
-    drawDisplay(txData.throttle, 1);
+    drawDisplay(txData.throttle, armed);
   }
 }

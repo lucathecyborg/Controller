@@ -15,7 +15,6 @@ bool initRadio()
         Serial.println("Radio hardware not responding!");
         return false;
     }
-
     radio.setPALevel(RF24_PA_LOW);
     radio.setDataRate(RF24_250KBPS);
     radio.setChannel(125); // Avoid WiFi interference
