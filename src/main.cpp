@@ -11,6 +11,7 @@
 #include "button.h"
 #include "toggle_switch.h"
 #include "bitmaps.h"
+#include "buzzer.h"
 
 #define THROTTLE_PIN A8
 #define SCREEN_WIDTH 128
@@ -23,6 +24,10 @@
 #define FLAG_SAFE_LANDING (1 << 3)   // enable safe landing
 #define FLAG_SET_HOME (1 << 4)       // set GPS home location
 #define FLAG_FREEZE (1 << 5)         // freeze input from controller
+
+#define LED_GREEN 34
+#define LED_YELLOW 35
+#define LED_RED 36
 
 // Timing
 unsigned long lastTransmitTime = 0;
@@ -290,6 +295,9 @@ void PIDCalibration()
   }
 }
 
+// Track previous armed state for melody logic
+bool prevArmed = false;
+
 void readInputs()
 {
   joystickL.readData();
@@ -309,6 +317,7 @@ void readInputs()
   {
   case 1:
     txData.flags |= FLAG_ARMED;
+
     break;
   case 2:
     txData.flags |= FLAG_FREEZE;
@@ -322,6 +331,47 @@ void readInputs()
     break;
   case 2:
     txData.flags |= FLAG_RETURN_TO_HOME;
+    break;
+  }
+
+  // Melody logic for armed/disarmed
+  bool nowArmed = (txData.flags & FLAG_ARMED);
+  if (nowArmed && !prevArmed)
+  {
+    playMelody(MELODY_ARMED, DURATION_ARMED_DISARMED, 2);
+    setLED(2);
+  }
+  else if (!nowArmed && prevArmed)
+  {
+    playMelody(MELODY_DISARMED, DURATION_ARMED_DISARMED, 2);
+    setLED(1);
+  }
+  prevArmed = nowArmed;
+}
+
+void setLED(int led)
+{
+  switch (led)
+  {
+  case 0:
+    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 1:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 1);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 2:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 1);
+    break;
+  default:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
     break;
   }
 }
@@ -338,13 +388,20 @@ void setup()
   delay(200);
   Serial.println("Controller starting...");
   initDisplay();
+
   delay(1000);
   pinMode(THROTTLE_PIN, INPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  playMelody(MELODY_BOOT, DURATION_BOOT, 3);
 
   if (!initRadio())
   {
     display.clearDisplay();
     display.drawBitmap(2, 9, radio_failed_screen, 123, 46, 1);
+    setLED(0);
     display.display();
     while (1)
     {
@@ -378,7 +435,7 @@ void loop()
     {
       lastPrintTime = now;
     }
-
+    updateBuzzer();
     drawDisplay(txData.throttle, 1);
   }
 }

@@ -46,6 +46,7 @@ void addChecksum(message *msg)
 }
 
 void readInputs();
+void setLED(int led);
 
 bool transmitData()
 {
@@ -67,6 +68,7 @@ bool transmitData()
         else
         {
             Serial.println("ACK payload not avalible");
+            setLED(0);
         }
     }
 
