@@ -12,7 +12,7 @@
 #include "toggle_switch.h"
 #include "bitmaps.h"
 
-#define THROTTLE_PIN A0
+#define THROTTLE_PIN A8
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
@@ -30,8 +30,8 @@ const unsigned long TRANSMIT_INTERVAL = 100;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-joystick joystickL(A1, A2, 22);
-joystick joystickR(A3, A4, 23);
+joystick joystickL(A9, A10, 22);
+joystick joystickR(A11, A12, 23);
 toggleSwitch flagSwitch(30, 31);
 toggleSwitch altitudeHold(32, 33);
 
