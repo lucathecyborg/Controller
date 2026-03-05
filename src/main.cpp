@@ -297,18 +297,41 @@ void PIDCalibration()
 
 // Track previous armed state for melody logic
 bool prevArmed = false;
-
+void setLED(int led)
+{
+  switch (led)
+  {
+  case 0:
+    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 1:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 1);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 2:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 1);
+    break;
+  default:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  }
+}
 void readInputs()
 {
   joystickL.readData();
   joystickR.readData();
   txData.leftX = joystickL.getX();
   txData.leftY = joystickL.getY();
-  txData.leftButton = joystickL.wasPressed();
 
   txData.rightX = joystickR.getX();
   txData.rightY = joystickR.getY();
-  txData.rightButton = joystickR.wasPressed();
 
   txData.throttle = analogRead(THROTTLE_PIN);
 
@@ -347,33 +370,6 @@ void readInputs()
     setLED(1);
   }
   prevArmed = nowArmed;
-}
-
-void setLED(int led)
-{
-  switch (led)
-  {
-  case 0:
-    digitalWrite(LED_RED, 1);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 0);
-    break;
-  case 1:
-    digitalWrite(LED_RED, 0);
-    digitalWrite(LED_YELLOW, 1);
-    digitalWrite(LED_GREEN, 0);
-    break;
-  case 2:
-    digitalWrite(LED_RED, 0);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 1);
-    break;
-  default:
-    digitalWrite(LED_RED, 0);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 0);
-    break;
-  }
 }
 
 void setup()
