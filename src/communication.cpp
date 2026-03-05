@@ -157,14 +157,10 @@ void printTransmittedData()
     Serial.print(txData.leftX);
     Serial.print(",");
     Serial.print(txData.leftY);
-    Serial.print(",");
-    Serial.print(txData.leftButton);
     Serial.print(" R:");
     Serial.print(txData.rightX);
     Serial.print(",");
     Serial.print(txData.rightY);
-    Serial.print(",");
-    Serial.print(txData.rightButton);
 
     if (txData.pidAxis < 3)
     {
