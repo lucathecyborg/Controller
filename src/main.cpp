@@ -25,9 +25,9 @@
 #define FLAG_SET_HOME (1 << 4)       // set GPS home location
 #define FLAG_FREEZE (1 << 5)         // freeze input from controller
 
-#define LED_GREEN 34
-#define LED_YELLOW 35
-#define LED_RED 36
+#define LED_GREEN 27
+#define LED_YELLOW 28
+#define LED_RED 29
 
 // Timing
 unsigned long lastTransmitTime = 0;
@@ -41,10 +41,10 @@ toggleSwitch flagSwitch(30, 31);
 toggleSwitch altitudeHold(32, 33);
 
 // Encoder setup - same as working example
-RotaryEncoder pidEncoder(26, 27, RotaryEncoder::LatchMode::FOUR3);
-Button pidEncoderButton(28);
-Button pidAxisSelector(25);
-Button calibrationToggle(24);
+RotaryEncoder pidEncoder(24, 25, RotaryEncoder::LatchMode::FOUR3);
+Button pidEncoderButton(26);
+Button pidAxisSelector(34);
+Button calibrationToggle(35);
 
 uint8_t ControllerBattery;
 
