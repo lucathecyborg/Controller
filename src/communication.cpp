@@ -7,7 +7,7 @@ message txData;
 uint16_t rxBattery = 0;
 int lastBatteryUpdate = 0;
 CommStats commStats = {0, 0, 0, 0, 0};
-
+unsigned long noAckSince = 0;
 bool initRadio()
 {
     if (!radio.begin())
@@ -59,17 +59,27 @@ bool transmitData()
 
     if (txSuccess)
     {
-        // Check if acknowledgment payload was received
         if (radio.isAckPayloadAvailable())
         {
             radio.read(&rxBattery, sizeof(rxBattery));
+            noAckSince = 0; // reset timer
         }
         else
         {
-            Serial.println("ACK payload not avalible");
-            setLED(0);
+            Serial.println("ACK payload not available");
+            if (noAckSince == 0)
+                noAckSince = millis();
+
+            if (millis() - noAckSince > 500)
+            {
+                setLED(5);
+            }
         }
     }
+    else
+    {
+        Serial.println("Transmission failed");
+        }
 
     return txSuccess;
 }

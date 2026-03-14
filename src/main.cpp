@@ -5,7 +5,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 #include <RotaryEncoder.h>
-#include <INA226.h>
 
 #include "communication.h"
 #include "joystick.h"
@@ -349,10 +348,13 @@ void setLED(int led)
     digitalWrite(LED_YELLOW, 1);
     digitalWrite(LED_GREEN, 1);
     break;
-  default:
-    digitalWrite(LED_RED, 0);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 0);
+  case 5:
+    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_YELLOW, 1);
+    break;
+  case 4:
+    digitalWrite(LED_RED, 1);
+
     break;
   }
 }
@@ -362,7 +364,7 @@ void readINA()
 {
   uint16_t raw = ina226_read(0x02);
   voltage = raw * 1.25f / 1000.0f;
-  if (voltage < 3.1)
+  if (voltage < 3.0)
   {
     setLED(0); // Red LED for low battery
     if (!lowBatteryAlerted)
@@ -461,7 +463,6 @@ void setup()
   initINA();
   setLED(3);
   delay(200);
-  setLED(4);
 }
 
 void loop()
