@@ -5,6 +5,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 #include <RotaryEncoder.h>
+#include <INA226.h>
 
 #include "communication.h"
 #include "joystick.h"
@@ -49,11 +50,13 @@ Button calibrationToggle(34);
 Button S_plus(39);
 Button S_minus(38);
 
-uint8_t ControllerBattery;
+float ControllerBattery;
 
 float roll_kp = 3.0, roll_ki = 0.0, roll_kd = 0.5;
 float pitch_kp = 3.0, pitch_ki = 0.0, pitch_kd = 0.5;
 float yaw_kp = 3.0, yaw_ki = 0.0, yaw_kd = 0.0;
+
+float voltage = 0.0;
 
 float *pid_values[3][3] = {
     {&pitch_kp, &pitch_ki, &pitch_kd},
@@ -73,10 +76,35 @@ void initDisplay()
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0, 0);
   display.drawBitmap(18, 0, drone_init_screen, 90, 60, 1);
+  display.drawRect(85, 47, 21, 2, 0);
   display.display();
 }
 
-void drawDisplay(int power, bool Light)
+void ina226_write(uint8_t reg, uint16_t value)
+{
+  Wire.beginTransmission(0x40);
+  Wire.write(reg);
+  Wire.write((value >> 8) & 0xFF);
+  Wire.write(value & 0xFF);
+  Wire.endTransmission();
+}
+
+uint16_t ina226_read(uint8_t reg)
+{
+  Wire.beginTransmission(0x40);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  Wire.requestFrom((uint8_t)0x40, (uint8_t)2);
+  return ((uint16_t)Wire.read() << 8) | Wire.read();
+}
+
+void initINA()
+{
+  ina226_write(0x00, 0x4527); // config
+  ina226_write(0x05, 0x0200); // calibration for 0.1Ω shunt, 1A max
+}
+
+void drawMainDisplay(int power)
 {
   static int lastPowerPercent = -100;
   int powerPercent = map(power, 0, 1023, 0, 100);
@@ -84,8 +112,7 @@ void drawDisplay(int power, bool Light)
   int DroneBatteryIndex = map(rxBattery, 0, 100, 0, 6);
   DroneBatteryIndex = constrain(DroneBatteryIndex, 0, 6);
 
-  int ControllerBatteryIndex = map(ControllerBattery, 0, 100, 0, 6);
-  ControllerBatteryIndex = constrain(ControllerBatteryIndex, 0, 6);
+  ControllerBattery = voltage;
 
   display.clearDisplay();
 
@@ -107,19 +134,19 @@ void drawDisplay(int power, bool Light)
     display.print('%');
   }
 
-  if (Light == 0)
+  if (armed == 0)
   {
-    display.drawBitmap(24, 46, lightOFF, 13, 14, 1);
+    display.drawBitmap(24, 46, cross, 11, 16, 1);
   }
   else
   {
-    display.drawBitmap(24, 46, lightON, 13, 14, 1);
+    display.drawBitmap(24, 46, check, 13, 16, 1);
   }
 
   display.setTextColor(1);
   display.setTextWrap(false);
-  display.setCursor(5, 4);
-  display.print("Controller");
+  display.setCursor(11, 4);
+  display.print("Voltage");
 
   display.setCursor(87, 4);
   display.print("Drone");
@@ -132,11 +159,11 @@ void drawDisplay(int power, bool Light)
   const unsigned char *droneIMG;
   memcpy_P(&droneIMG, &batteryList[DroneBatteryIndex], sizeof(droneIMG));
 
-  const unsigned char *controllerIMG;
-  memcpy_P(&controllerIMG, &batteryList[ControllerBatteryIndex], sizeof(controllerIMG));
-
-  display.drawBitmap(18, 15, controllerIMG, 24, 16, 1);
   display.drawBitmap(88, 14, droneIMG, 24, 16, 1);
+
+  display.setCursor(16, 17);
+  display.print(ControllerBattery);
+  display.print('V');
   display.display();
 }
 
@@ -310,12 +337,10 @@ void setLED(int led)
     digitalWrite(LED_GREEN, 0);
     break;
   case 1:
-    digitalWrite(LED_RED, 0);
     digitalWrite(LED_YELLOW, 1);
     digitalWrite(LED_GREEN, 0);
     break;
   case 2:
-    digitalWrite(LED_RED, 0);
     digitalWrite(LED_YELLOW, 0);
     digitalWrite(LED_GREEN, 1);
     break;
@@ -329,6 +354,22 @@ void setLED(int led)
     digitalWrite(LED_YELLOW, 0);
     digitalWrite(LED_GREEN, 0);
     break;
+  }
+}
+
+bool lowBatteryAlerted = false;
+void readINA()
+{
+  uint16_t raw = ina226_read(0x02);
+  voltage = raw * 1.25f / 1000.0f;
+  if (voltage < 3.1)
+  {
+    setLED(0); // Red LED for low battery
+    if (!lowBatteryAlerted)
+    {
+      playMelody(MELODY_LOWBAT, DURATION_LOWBAT, 3);
+      lowBatteryAlerted = true;
+    }
   }
 }
 void readInputs()
@@ -348,6 +389,7 @@ void readInputs()
   {
   case 1:
     txData.flags |= FLAG_ARMED;
+    armed = true;
 
     break;
   case 2:
@@ -385,6 +427,7 @@ void readInputs()
 void setup()
 {
   Serial.begin(9600);
+  Wire.begin();
   pinMode(CSN_PIN, OUTPUT);
   digitalWrite(CSN_PIN, HIGH);
   delay(100);
@@ -407,12 +450,18 @@ void setup()
     display.drawBitmap(2, 9, radio_failed_screen, 123, 46, 1);
     setLED(0);
     display.display();
+    tone(BUZZER_PIN, 350, 1500); // Long low tone for radio failure
+    delay(500);
+    noTone(BUZZER_PIN);
     while (1)
     {
       delay(1000);
     }
   }
+  initINA();
   setLED(3);
+  delay(200);
+  setLED(4);
 }
 
 void loop()
@@ -429,7 +478,7 @@ void loop()
     PIDCalibration();
   }
 
-  /**/ if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
+  if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
   {
     lastTransmitTime = now;
 
@@ -437,11 +486,12 @@ void loop()
     updateCommStats(success, radio.isAckPayloadAvailable());
     Serial.println(success);
 
-    if (now - lastPrintTime >= 200)
-    {
-      lastPrintTime = now;
-    }
     updateBuzzer();
-    drawDisplay(txData.throttle, 1);
+    drawMainDisplay(txData.throttle);
+  }
+  if (now - lastBatteryUpdate >= 1000)
+  {
+    readINA();
+    lastBatteryUpdate = now;
   }
 }

@@ -37,7 +37,7 @@ struct message
 
 extern message txData;
 extern uint16_t rxBattery;
-extern int lastPrintTime;
+extern int lastBatteryUpdate;
 
 struct CommStats
 {
