@@ -33,6 +33,7 @@
 unsigned long lastTransmitTime = 0;
 const unsigned long TRANSMIT_INTERVAL = 100;
 bool armed;
+int currentScreen = 0;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -410,7 +411,7 @@ void readInputs()
     txData.flags |= FLAG_ALT_HOLD;
     break;
   case 2:
-    txData.flags |= FLAG_RETURN_TO_HOME;
+    txData.flags |= FLAG_SAFE_LANDING;
     break;
   }
 
@@ -469,6 +470,89 @@ void setup()
   setLED(9);
 }
 
+void drawCommStats()
+{
+  display.clearDisplay();
+  display.setTextColor(1);
+  display.setTextWrap(false);
+  display.setCursor(9, 42);
+  display.print(commStats.packetsSent);
+
+  display.setCursor(52, 42);
+  float successRate = (commStats.acksReceived * 100.0) / commStats.packetsSent;
+  display.print(successRate);
+  display.print("%");
+
+  display.setCursor(94, 42);
+  display.print(commStats.acksReceived);
+
+  display.drawBitmap(0, 2, stats_screen, 128, 33, 1);
+
+  display.display();
+}
+
+void drawFlags()
+{
+  display.clearDisplay();
+  display.setTextColor(1);
+  display.setTextWrap(false);
+
+  display.setTextSize(1);
+  display.setCursor(35, 0);
+  display.print("Active Flags");
+  display.drawLine(0, 10, 126, 10, 1);
+
+  // Each flag as a row — filled rect if active, just outline if not
+  struct
+  {
+    const char *name;
+    bool active;
+  } flags[4] = {
+      {"ARMED", (bool)(txData.flags & FLAG_ARMED)},
+      {"FREEZE", (bool)(txData.flags & FLAG_FREEZE)},
+      {"ALT HOLD", (bool)(txData.flags & FLAG_ALT_HOLD)},
+      {"SAFE LAND", (bool)(txData.flags & FLAG_SAFE_LANDING)},
+  };
+
+  for (int i = 0; i < 4; i++)
+  {
+    int y = 14 + i * 13;
+    if (flags[i].active)
+    {
+      display.fillRoundRect(0, y, 126, 11, 2, 1);
+      display.setTextColor(0); // black text on white bg
+    }
+    else
+    {
+      display.drawRoundRect(0, y, 126, 11, 2, 1);
+      display.setTextColor(1); // white text on black bg
+    }
+    display.setCursor(4, y + 2);
+    display.print(flags[i].name);
+  }
+
+  display.setTextColor(1); // reset
+  display.display();
+}
+
+void selectScreen(int n)
+{
+  switch (n)
+  {
+  case 0:
+    drawMainDisplay(txData.throttle);
+    break;
+  case 1:
+    drawCommStats();
+    break;
+  case 2:
+    drawFlags();
+    break;
+  default:
+    break;
+  }
+}
+
 void loop()
 {
   unsigned long now = millis();
@@ -477,10 +561,24 @@ void loop()
   pidEncoder.tick();
 
   calibrationToggle.update();
+  S_plus.update();
+  S_minus.update();
 
   if (calibrationToggle.wasReleased())
   {
     PIDCalibration();
+  }
+  if (S_plus.wasReleased())
+  {
+    currentScreen++;
+    if (currentScreen > 2)
+      currentScreen = 0;
+  }
+  if (S_minus.wasReleased())
+  {
+    currentScreen--;
+    if (currentScreen < 0)
+      currentScreen = 2;
   }
 
   if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
@@ -492,7 +590,8 @@ void loop()
     Serial.println(success);
 
     updateBuzzer();
-    drawMainDisplay(txData.throttle);
+
+    selectScreen(currentScreen);
   }
   if (now - lastBatteryUpdate >= 1000)
   {
