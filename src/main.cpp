@@ -333,13 +333,12 @@ void readInputs()
 
 void setup()
 {
+  Serial.begin(9600);
   pinMode(CSN_PIN, OUTPUT);
   digitalWrite(CSN_PIN, HIGH);
-
-  Serial.begin(9600);
   delay(100);
   SPI.begin();
-  delay(200);
+  delay(100);
   Serial.println("Controller starting...");
   initDisplay();
   delay(1000);
@@ -371,12 +370,13 @@ void loop()
     PIDCalibration();
   }
 
-  if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
+  /**/ if (now - lastTransmitTime >= TRANSMIT_INTERVAL)
   {
     lastTransmitTime = now;
 
     bool success = transmitData();
     updateCommStats(success, radio.isAckPayloadAvailable());
+    Serial.println(success);
 
     if (now - lastPrintTime >= 200)
     {
