@@ -67,19 +67,14 @@ bool transmitData()
         else
         {
             Serial.println("ACK payload not available");
-            if (noAckSince == 0)
-                noAckSince = millis();
-
-            if (millis() - noAckSince > 500)
-            {
-                setLED(5);
-            }
         }
+     
     }
     else
     {
         Serial.println("Transmission failed");
-        }
+    
+    }
 
     return txSuccess;
 }

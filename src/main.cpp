@@ -354,8 +354,11 @@ void setLED(int led)
     break;
   case 4:
     digitalWrite(LED_RED, 1);
-
     break;
+  default:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
   }
 }
 
@@ -463,6 +466,7 @@ void setup()
   initINA();
   setLED(3);
   delay(200);
+  setLED(9);
 }
 
 void loop()
