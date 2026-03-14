@@ -9,8 +9,8 @@
 
 // Pin definitions for Arduino
 // Standard Arduino SPI pins: SCK=52, MISO=50, MOSI=51
-#define CE_PIN 9
-#define CSN_PIN 10
+#define CE_PIN 8
+#define CSN_PIN 9
 
 extern RF24 radio;
 extern const byte address[6];

@@ -14,15 +14,15 @@ joystick::joystick(int X_PIN1, int Y_PIN1, int BUTTON_PIN1)
 
 void joystick::readData()
 {
-    x = analogRead(X_PIN);
-    y = analogRead(Y_PIN);
+    x = map(analogRead(X_PIN), 1023, 0, 0, 1023);
+    y = map(analogRead(Y_PIN), 1023, 0, 0, 1023);
 
-    bool currentButton = (digitalRead(BUTTON_PIN) == LOW);
+    /*  bool currentButton = (digitalRead(BUTTON_PIN) == LOW);
 
-    // True only on press event (falling edge with INPUT_PULLUP)
-    buttonState = (currentButton && !previousButtonState);
+      // True only on press event (falling edge with INPUT_PULLUP)
+      buttonState = (currentButton && !previousButtonState);
 
-    previousButtonState = currentButton;
+      previousButtonState = currentButton; */
 }
 
 bool joystick::wasPressed()

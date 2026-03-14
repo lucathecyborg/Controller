@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define BUZZER_PIN 3
+#define BUZZER_PIN 30
 struct buzzer
 {
     const int *melody;

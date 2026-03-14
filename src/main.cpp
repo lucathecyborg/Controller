@@ -25,9 +25,9 @@
 #define FLAG_SET_HOME (1 << 4)       // set GPS home location
 #define FLAG_FREEZE (1 << 5)         // freeze input from controller
 
-#define LED_GREEN 27
+#define LED_GREEN 29
 #define LED_YELLOW 28
-#define LED_RED 29
+#define LED_RED 27
 
 // Timing
 unsigned long lastTransmitTime = 0;
@@ -36,16 +36,18 @@ bool armed;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-joystick joystickL(A9, A10, 22);
-joystick joystickR(A11, A12, 23);
-toggleSwitch flagSwitch(30, 31);
-toggleSwitch altitudeHold(32, 33);
+joystick joystickL(A11, A12, 22);
+joystick joystickR(A9, A10, 23);
+toggleSwitch flagSwitch(31, 32);
+toggleSwitch altitudeHold(33, 35);
 
 // Encoder setup - same as working example
-RotaryEncoder pidEncoder(24, 25, RotaryEncoder::LatchMode::FOUR3);
+RotaryEncoder pidEncoder(25, 24, RotaryEncoder::LatchMode::FOUR3);
 Button pidEncoderButton(26);
-Button pidAxisSelector(34);
-Button calibrationToggle(35);
+Button pidAxisSelector(37);
+Button calibrationToggle(34);
+Button S_plus(39);
+Button S_minus(38);
 
 uint8_t ControllerBattery;
 
@@ -339,10 +341,10 @@ void readInputs()
   txData.rightX = joystickR.getX();
   txData.rightY = joystickR.getY();
 
-  txData.throttle = analogRead(THROTTLE_PIN);
+  txData.throttle = map(analogRead(THROTTLE_PIN), 1023, 0, 0, 1023);
 
   txData.flags = 0;
-  switch (armToggle.readOutput())
+  switch (flagSwitch.readOutput())
   {
   case 1:
     txData.flags |= FLAG_ARMED;
