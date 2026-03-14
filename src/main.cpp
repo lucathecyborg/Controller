@@ -11,8 +11,9 @@
 #include "button.h"
 #include "toggle_switch.h"
 #include "bitmaps.h"
+#include "buzzer.h"
 
-#define THROTTLE_PIN A0
+#define THROTTLE_PIN A8
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
@@ -24,6 +25,10 @@
 #define FLAG_SET_HOME (1 << 4)       // set GPS home location
 #define FLAG_FREEZE (1 << 5)         // freeze input from controller
 
+#define LED_GREEN 27
+#define LED_YELLOW 28
+#define LED_RED 29
+
 // Timing
 unsigned long lastTransmitTime = 0;
 const unsigned long TRANSMIT_INTERVAL = 100;
@@ -31,17 +36,16 @@ bool armed;
 
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-joystick joystickL(A1, A2, 22);
-joystick joystickR(A3, A4, 23);
-toggleSwitch armToggle(30, 31);
+joystick joystickL(A9, A10, 22);
+joystick joystickR(A11, A12, 23);
+toggleSwitch flagSwitch(30, 31);
 toggleSwitch altitudeHold(32, 33);
 
 // Encoder setup - same as working example
-RotaryEncoder pidEncoder(26, 27, RotaryEncoder::LatchMode::FOUR3);
-
-Button pidEncoderButton(28);
-Button pidAxisSelector(25);
-Button calibrationToggle(24);
+RotaryEncoder pidEncoder(24, 25, RotaryEncoder::LatchMode::FOUR3);
+Button pidEncoderButton(26);
+Button pidAxisSelector(34);
+Button calibrationToggle(35);
 
 uint8_t ControllerBattery;
 
@@ -292,17 +296,48 @@ void PIDCalibration()
   }
 }
 
+// Track previous armed state for melody logic
+bool prevArmed = false;
+void setLED(int led)
+{
+  switch (led)
+  {
+  case 0:
+    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 1:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 1);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  case 2:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 1);
+    break;
+  case 3:
+    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_YELLOW, 1);
+    digitalWrite(LED_GREEN, 1);
+    break;
+  default:
+    digitalWrite(LED_RED, 0);
+    digitalWrite(LED_YELLOW, 0);
+    digitalWrite(LED_GREEN, 0);
+    break;
+  }
+}
 void readInputs()
 {
   joystickL.readData();
   joystickR.readData();
   txData.leftX = joystickL.getX();
   txData.leftY = joystickL.getY();
-  txData.leftButton = joystickL.wasPressed();
 
   txData.rightX = joystickR.getX();
   txData.rightY = joystickR.getY();
-  txData.rightButton = joystickR.wasPressed();
 
   txData.throttle = analogRead(THROTTLE_PIN);
 
@@ -311,7 +346,7 @@ void readInputs()
   {
   case 1:
     txData.flags |= FLAG_ARMED;
-    armed = true;
+
     break;
   case 2:
     txData.flags |= FLAG_FREEZE;
@@ -329,6 +364,20 @@ void readInputs()
     txData.flags |= FLAG_RETURN_TO_HOME;
     break;
   }
+
+  // Melody logic for armed/disarmed
+  bool nowArmed = (txData.flags & FLAG_ARMED);
+  if (nowArmed && !prevArmed)
+  {
+    playMelody(MELODY_ARMED, DURATION_ARMED_DISARMED, 2);
+    setLED(2);
+  }
+  else if (!nowArmed && prevArmed)
+  {
+    playMelody(MELODY_DISARMED, DURATION_ARMED_DISARMED, 2);
+    setLED(1);
+  }
+  prevArmed = nowArmed;
 }
 
 void setup()
@@ -341,19 +390,27 @@ void setup()
   delay(100);
   Serial.println("Controller starting...");
   initDisplay();
+
   delay(1000);
   pinMode(THROTTLE_PIN, INPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  playMelody(MELODY_BOOT, DURATION_BOOT, 3);
 
   if (!initRadio())
   {
     display.clearDisplay();
     display.drawBitmap(2, 9, radio_failed_screen, 123, 46, 1);
+    setLED(0);
     display.display();
     while (1)
     {
       delay(1000);
     }
   }
+  setLED(3);
 }
 
 void loop()
@@ -382,7 +439,7 @@ void loop()
     {
       lastPrintTime = now;
     }
-
-    drawDisplay(txData.throttle, armed);
+    updateBuzzer();
+    drawDisplay(txData.throttle, 1);
   }
 }
