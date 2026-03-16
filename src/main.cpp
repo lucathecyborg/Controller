@@ -322,44 +322,37 @@ void PIDCalibration()
       Serial.println("=== PID Calibration Ended ===");
       return;
     }
+    updateBuzzer();
   }
 }
 
 // Track previous armed state for melody logic
 bool prevArmed = false;
+
+// 0=RED, 1=YELLOW, 2=GREEN, 3=OFF, 4=ON
 void setLED(int led)
 {
   switch (led)
   {
   case 0:
-    digitalWrite(LED_RED, 1);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 0);
+    digitalWrite(LED_RED, HIGH);
     break;
   case 1:
-    digitalWrite(LED_YELLOW, 1);
-    digitalWrite(LED_GREEN, 0);
+    digitalWrite(LED_YELLOW, HIGH);
     break;
   case 2:
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 1);
+    digitalWrite(LED_GREEN, HIGH);
     break;
   case 3:
-    digitalWrite(LED_RED, 1);
-    digitalWrite(LED_YELLOW, 1);
-    digitalWrite(LED_GREEN, 1);
-    break;
-  case 5:
-    digitalWrite(LED_RED, 1);
-    digitalWrite(LED_YELLOW, 1);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_YELLOW, LOW);
     break;
   case 4:
-    digitalWrite(LED_RED, 1);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_YELLOW, HIGH);
     break;
-  default:
-    digitalWrite(LED_RED, 0);
-    digitalWrite(LED_YELLOW, 0);
-    digitalWrite(LED_GREEN, 0);
   }
 }
 
@@ -395,14 +388,15 @@ void readInputs()
   {
   case 1:
     txData.flags |= FLAG_ARMED;
+    setLED(2);
     armed = true;
-
     break;
   case 2:
     txData.flags |= FLAG_FREEZE;
     break;
   default:
     armed = false;
+    setLED(1);
   }
 
   switch (altitudeHold.readOutput())
@@ -420,12 +414,10 @@ void readInputs()
   if (nowArmed && !prevArmed)
   {
     playMelody(MELODY_ARMED, DURATION_ARMED_DISARMED, 2);
-    setLED(2);
   }
   else if (!nowArmed && prevArmed)
   {
     playMelody(MELODY_DISARMED, DURATION_ARMED_DISARMED, 2);
-    setLED(1);
   }
   prevArmed = nowArmed;
 }
@@ -465,9 +457,7 @@ void setup()
     }
   }
   initINA();
-  setLED(3);
-  delay(200);
-  setLED(9);
+  setLED(4);
 }
 
 void drawCommStats()
@@ -598,4 +588,5 @@ void loop()
     readINA();
     lastBatteryUpdate = now;
   }
+  setLED(3);
 }
