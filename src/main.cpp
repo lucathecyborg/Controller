@@ -52,9 +52,9 @@ Button S_minus(38);
 
 float ControllerBattery;
 
-float roll_kp = 3.0, roll_ki = 0.0, roll_kd = 0.5;
-float pitch_kp = 3.0, pitch_ki = 0.0, pitch_kd = 0.5;
-float yaw_kp = 3.0, yaw_ki = 0.0, yaw_kd = 0.0;
+float roll_kp = 1.5, roll_ki = 0.0, roll_kd = 0.3;
+float pitch_kp = 1.5, pitch_ki = 0.0, pitch_kd = 0.3;
+float yaw_kp = 2.0, yaw_ki = 0.0, yaw_kd = 0.0;
 
 float voltage = 0.0;
 
