@@ -232,6 +232,32 @@ void drawPID(int axis, int variable, float kp, float ki, float kd)
   display.display();
 }
 
+// 0=RED, 1=YELLOW, 2=GREEN, 3=OFF, 4=ON
+void setLED(int led)
+{
+  switch (led)
+  {
+  case 0:
+    digitalWrite(LED_RED, HIGH);
+    break;
+  case 1:
+    digitalWrite(LED_YELLOW, HIGH);
+    break;
+  case 2:
+    digitalWrite(LED_GREEN, HIGH);
+    break;
+  case 3:
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_YELLOW, LOW);
+    break;
+  case 4:
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_YELLOW, HIGH);
+    break;
+  }
+}
 void PIDCalibration()
 {
   uint8_t axis = 0;
@@ -315,6 +341,7 @@ void PIDCalibration()
     {
       lastPidTransmitTime = now;
       transmitData();
+      
     }
 
     if (calibrationToggle.wasReleased())
@@ -328,33 +355,6 @@ void PIDCalibration()
 
 // Track previous armed state for melody logic
 bool prevArmed = false;
-
-// 0=RED, 1=YELLOW, 2=GREEN, 3=OFF, 4=ON
-void setLED(int led)
-{
-  switch (led)
-  {
-  case 0:
-    digitalWrite(LED_RED, HIGH);
-    break;
-  case 1:
-    digitalWrite(LED_YELLOW, HIGH);
-    break;
-  case 2:
-    digitalWrite(LED_GREEN, HIGH);
-    break;
-  case 3:
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_RED, LOW);
-    digitalWrite(LED_YELLOW, LOW);
-    break;
-  case 4:
-    digitalWrite(LED_GREEN, HIGH);
-    digitalWrite(LED_RED, HIGH);
-    digitalWrite(LED_YELLOW, HIGH);
-    break;
-  }
-}
 
 bool lowBatteryAlerted = false;
 void readINA()
