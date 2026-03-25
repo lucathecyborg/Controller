@@ -15,7 +15,7 @@ bool initRadio()
         Serial.println("Radio hardware not responding!");
         return false;
     }
-    radio.setPALevel(RF24_PA_LOW);
+    radio.setPALevel(RF24_PA_HIGH);
     radio.setDataRate(RF24_250KBPS);
     radio.setChannel(125); // Avoid WiFi interference
     radio.enableAckPayload();
@@ -68,12 +68,10 @@ bool transmitData()
         {
             Serial.println("ACK payload not available");
         }
-     
     }
     else
     {
         Serial.println("Transmission failed");
-    
     }
 
     return txSuccess;

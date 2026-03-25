@@ -341,11 +341,11 @@ void PIDCalibration()
     {
       lastPidTransmitTime = now;
       transmitData();
-      
     }
 
     if (calibrationToggle.wasReleased())
     {
+      txData.pidAxis = 200;
       Serial.println("=== PID Calibration Ended ===");
       return;
     }
@@ -456,6 +456,7 @@ void setup()
       delay(1000);
     }
   }
+  txData.pidAxis = 200;
   initINA();
   setLED(4);
 }
